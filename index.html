@@ -1,0 +1,290 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gymmer's Hub</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0b1020;
+      color: #eef2ff;
+    }
+    header {
+      background: #141d35;
+      padding: 22px;
+      border-bottom: 1px solid #293653;
+    }
+    .wrap { max-width: 820px; margin: auto; }
+    h1 { margin: 0 0 5px; }
+    .sub, .muted { color: #b7c4df; }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 17px;
+      background: #3c6ff4;
+      color: white;
+    }
+    button:disabled { opacity: .5; }
+    nav button { background: #273653; }
+    nav button.active { background: #3c6ff4; }
+    main { padding: 0 20px 50px; }
+    section {
+      display: none;
+      background: #18233d;
+      border: 1px solid #2a3a5b;
+      border-radius: 15px;
+      padding: 24px;
+    }
+    section.active { display: block; }
+    input {
+      background: #0e172b;
+      color: white;
+      border: 1px solid #546482;
+      padding: 12px;
+      border-radius: 9px;
+      font: inherit;
+      max-width: 100%;
+    }
+    #tapBtn {
+      display: block;
+      width: min(100%, 350px);
+      min-height: 115px;
+      margin: 20px 0;
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+    .stats {
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+    }
+    ol { line-height: 2; }
+    .note {
+      padding: 12px;
+      border-radius: 10px;
+      background: #263653;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>🚀 Gymmer's Hub</h1>
+      <div class="sub">Chat • Games • Leaderboard</div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav>
+      <button class="active" data-page="games">🎮 Games</button>
+      <button data-page="leaderboard">🏆 Leaderboard</button>
+      <button data-page="chat">💬 Chat</button>
+    </nav>
+
+    <section id="games" class="active">
+      <h2>Tap Rush</h2>
+      <p>How many times can you tap in 10 seconds?</p>
+      <label for="playerName">Your nickname</label>
+      <p><input id="playerName" maxlength="20"
+        placeholder="Enter nickname"></p>
+      <button id="startBtn">Start 10-second round</button>
+      <p class="stats">
+        <span>Time: <strong id="time">10.0</strong>s</span>
+        <span>Score: <strong id="score">0</strong></span>
+      </p>
+      <button id="tapBtn" disabled>TAP!</button>
+      <p id="result" class="muted" role="status">
+        Enter a nickname and start playing.
+      </p>
+    </section>
+
+    <section id="leaderboard">
+      <h2>🏆 Tap Rush Leaderboard</h2>
+      <p class="note">
+        Scores are saved only in this browser for now.
+        Online scores are coming later!
+      </p>
+      <ol id="scoresList"></ol>
+    </section>
+
+    <section id="chat">
+      <h2>💬 Friends Chat</h2>
+      <p class="note">
+        Coming soon! We'll connect Supabase to support
+        real-time messaging between friends.
+      </p>
+      <p class="muted">
+        Chat isn't active yet.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const tabs = document.querySelectorAll('nav button');
+    const pages = document.querySelectorAll('main section');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(b => {
+          b.classList.toggle('active', b === tab);
+        });
+        pages.forEach(p => {
+          p.classList.toggle(
+            'active', p.id === tab.dataset.page
+          );
+        });
+        if (tab.dataset.page === 'leaderboard') {
+          renderScores();
+        }
+      });
+    });
+
+    const startBtn = document.getElementById('startBtn');
+    const tapBtn = document.getElementById('tapBtn');
+    const nameInput = document.getElementById('playerName');
+    const timeLabel = document.getElementById('time');
+    const scoreLabel = document.getElementById('score');
+    const result = document.getElementById('result');
+
+    let playing = false;
+    let score = 0;
+    let endAt = 0;
+    let timer = null;
+
+    startBtn.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        result.textContent = 'Enter a nickname first!';
+        nameInput.focus();
+        return;
+      }
+
+      playing = true;
+      score = 0;
+      endAt = performance.now() + 10000;
+
+      scoreLabel.textContent = '0';
+      timeLabel.textContent = '10.0';
+      result.textContent = 'Go, go, go!';
+
+      startBtn.disabled = true;
+      nameInput.disabled = true;
+      tapBtn.disabled = false;
+
+      clearInterval(timer);
+
+      timer = setInterval(() => {
+        const left = Math.max(0, endAt - performance.now());
+        timeLabel.textContent = (left / 1000).toFixed(1);
+
+        if (left <= 0) {
+          finishRound();
+        }
+      }, 40);
+    });
+
+    tapBtn.addEventListener('click', () => {
+      if (!playing) return;
+
+      if (performance.now() >= endAt) {
+        finishRound();
+        return;
+      }
+
+      score++;
+      scoreLabel.textContent = String(score);
+    });
+
+    function finishRound() {
+      if (!playing) return;
+
+      playing = false;
+      clearInterval(timer);
+
+      timeLabel.textContent = '0.0';
+      tapBtn.disabled = true;
+      startBtn.disabled = false;
+      nameInput.disabled = false;
+
+      const entries = loadScores();
+
+      entries.push({
+        name: nameInput.value.trim(),
+        score: score
+      });
+
+      entries.sort((a, b) => b.score - a.score);
+
+      try {
+        localStorage.setItem(
+          'gymmersHubScores',
+          JSON.stringify(entries.slice(0, 10))
+        );
+        result.textContent =
+          `Nice! You scored ${score}. Check the leaderboard!`;
+      } catch (e) {
+        result.textContent =
+          'Round finished, but your score could not be saved.';
+      }
+
+      renderScores();
+    }
+
+    function loadScores() {
+      try {
+        const data = JSON.parse(
+          localStorage.getItem('gymmersHubScores') || '[]'
+        );
+
+        return Array.isArray(data)
+          ? data.filter(x =>
+              typeof x.name === 'string' &&
+              Number.isFinite(x.score)
+            )
+          : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function renderScores() {
+      const list = document.getElementById('scoresList');
+      list.replaceChildren();
+
+      const scores = loadScores();
+
+      if (!scores.length) {
+        const item = document.createElement('li');
+        item.textContent = 'No scores yet. Play a round!';
+        list.append(item);
+        return;
+      }
+
+      scores.forEach(entry => {
+        const item = document.createElement('li');
+        item.textContent =
+          `${entry.name} — ${entry.score} taps`;
+        list.append(item);
+      });
+    }
+
+    renderScores();
+  </script>
+</body>
+</html>
